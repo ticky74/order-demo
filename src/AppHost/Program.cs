@@ -1,4 +1,4 @@
-// src/AppHost/AppHost.cs
+// src/AppHost/Program.cs
 var builder = DistributedApplication.CreateBuilder(args);
 
 // ── PostgreSQL ─────────────────────────────────────────────
@@ -29,7 +29,7 @@ var orderApi = builder.AddProject<Projects.Order_Api>("order-api")
     .WithReference(rabbit).WaitFor(rabbit)
     .WithExternalHttpEndpoints();
 
-var paymentApi = builder.AddProject<Projects.Payment_Api>("payment-api")
+builder.AddProject<Projects.Payment_Api>("payment-api")
     .WithHttpsEndpoint(port: 7003)
     .WithReference(paymentsDb).WaitFor(paymentsDb)
     .WithReference(rabbit).WaitFor(rabbit)
@@ -44,7 +44,7 @@ var projector = builder.AddProject<Projects.ReadModel_Projector>("readmodel-proj
 // ── Frontend ───────────────────────────────────────────────
 builder.AddViteApp("frontend", "../Frontend/frontend")
     .WithNpm()
-    .WithHttpEndpoint(port: 3000)
+    .WithHttpEndpoint(port: 3000, env: "VITE_PORT")
     .WithReference(inventoryApi)
     .WithReference(orderApi)
     .WithReference(projector)
