@@ -6,7 +6,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Aspire.Npgsql" Version="13.2.0" />
     <PackageReference Include="Marten" Version="8.26.2" />
     <PackageReference Include="WolverineFx" Version="5.24.0" />
     <PackageReference Include="WolverineFx.Marten" Version="5.24.0" />

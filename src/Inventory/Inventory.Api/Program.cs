@@ -24,7 +24,6 @@ builder.Host.UseWolverine(opts =>
 {
     opts.UseRabbitMqUsingNamedConnection("rabbitmq")
         .AutoProvision()
-        .AutoPurgeOnStartup()   // clean queues on dev restart
         // Bind incoming exchanges to the inventory inbox queue
         .BindExchange("order-events").ToQueue("inventory-api-inbox")
         .BindExchange("payment-events").ToQueue("inventory-api-inbox");
