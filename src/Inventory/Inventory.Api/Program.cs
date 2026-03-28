@@ -1,34 +1,56 @@
+// src/Inventory/Inventory.Api/Program.cs
+using Contracts.Events;
+using Inventory.Api.Endpoints;
+using Inventory.Api.Infrastructure;
+using Marten;
+using Wolverine;
+using Wolverine.Marten;
+using Wolverine.RabbitMQ;
+
 var builder = WebApplication.CreateBuilder(args);
+builder.AddServiceDefaults();
 
-// Add services to the container.
-
-var app = builder.Build();
-
-// Configure the HTTP request pipeline.
-
-app.UseHttpsRedirection();
-
-var summaries = new[]
+// ── Marten (event store) ────────────────────────────────────
+builder.Services.AddMarten(opts =>
 {
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
+    opts.Connection(builder.Configuration.GetConnectionString("inventory-db")!);
+    opts.AutoCreateSchemaObjects = JasperFx.AutoCreate.All;
+})
+.IntegrateWithWolverine()
+.ApplyAllDatabaseChangesOnStartup();
 
-app.MapGet("/weatherforecast", () =>
+// ── Wolverine (messaging) ────────────────────────────────────
+builder.Host.UseWolverine(opts =>
 {
-    var forecast =  Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
+    opts.UseRabbitMqUsingNamedConnection("rabbitmq")
+        .AutoProvision()
+        .AutoPurgeOnStartup()   // clean queues on dev restart
+        // Bind incoming exchanges to the inventory inbox queue
+        .BindExchange("order-events").ToQueue("inventory-api-inbox")
+        .BindExchange("payment-events").ToQueue("inventory-api-inbox");
+
+    opts.Policies.AutoApplyTransactions();
+    opts.Policies.UseDurableOutboxOnAllSendingEndpoints();
+
+    // Publish inventory events to the inventory-events exchange
+    opts.PublishMessage<InventoryItemCreated>().ToRabbitExchange("inventory-events");
+    opts.PublishMessage<StockReserved>().ToRabbitExchange("inventory-events");
+    opts.PublishMessage<StockReservationFailed>().ToRabbitExchange("inventory-events");
+    opts.PublishMessage<StockReleased>().ToRabbitExchange("inventory-events");
+    opts.PublishMessage<StockQuantityUpdated>().ToRabbitExchange("inventory-events");
+
+    // Listen on the inventory inbox queue (bound to order-events and payment-events above)
+    opts.ListenToRabbitQueue("inventory-api-inbox");
 });
 
-app.Run();
+builder.Services.AddHostedService<InventorySeeder>();
 
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}
+// ── CORS (allow frontend dev server) ────────────────────────
+builder.Services.AddCors(o => o.AddDefaultPolicy(p =>
+    p.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()));
+
+var app = builder.Build();
+app.UseCors();
+app.MapDefaultEndpoints();
+app.MapInventoryEndpoints();
+app.Run();
