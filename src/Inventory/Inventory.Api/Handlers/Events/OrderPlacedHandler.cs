@@ -40,6 +40,8 @@ public static class OrderPlacedHandler
         IDocumentSession session,
         IMessageBus bus)
     {
+        // NOTE: Not idempotent — duplicate delivery of OrderPlaced will fail the stock check
+        // on already-reduced quantities. Acceptable for this POC.
         // Load all inventory items involved in the order
         var itemIds = evt.Items.Select(i => i.ItemId).ToArray();
         var items = new List<InventoryItem>();

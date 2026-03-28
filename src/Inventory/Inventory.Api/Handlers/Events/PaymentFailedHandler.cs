@@ -13,7 +13,9 @@ public static class PaymentFailedHandler
         IDocumentSession session,
         IMessageBus bus)
     {
-        // Restore stock for each item in the failed order
+        // NOTE: Not idempotent — duplicate delivery would double-restore stock. Acceptable for this POC.
+        var restoredItems = new List<Contracts.Models.OrderItem>();
+
         foreach (var orderItem in evt.Items)
         {
             var item = await session.Events.AggregateStreamAsync<InventoryItem>(orderItem.ItemId);
@@ -21,9 +23,11 @@ public static class PaymentFailedHandler
 
             var restoredQty = item.StockQuantity + orderItem.Quantity;
             session.Events.Append(orderItem.ItemId, new StockQuantityUpdated(orderItem.ItemId, restoredQty));
+            restoredItems.Add(orderItem);
         }
 
-        await bus.PublishAsync(new StockReleased(evt.OrderId, evt.Items));
+        if (restoredItems.Count > 0)
+            await bus.PublishAsync(new StockReleased(evt.OrderId, restoredItems.ToArray()));
         // Wolverine's AutoApplyTransactions calls SaveChangesAsync after this handler completes
     }
 }
