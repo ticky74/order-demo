@@ -1,34 +1,42 @@
+// src/Payment/Payment.Api/Program.cs
+using Contracts.Events;
+using Payment.Api.Endpoints;
+using Marten;
+using Wolverine;
+using Wolverine.Marten;
+using Wolverine.RabbitMQ;
+
 var builder = WebApplication.CreateBuilder(args);
+builder.AddServiceDefaults();
 
-// Add services to the container.
-
-var app = builder.Build();
-
-// Configure the HTTP request pipeline.
-
-app.UseHttpsRedirection();
-
-var summaries = new[]
+builder.Services.AddMarten(opts =>
 {
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
+    opts.Connection(builder.Configuration.GetConnectionString("payments-db")!);
+    opts.AutoCreateSchemaObjects = JasperFx.AutoCreate.All;
+})
+.IntegrateWithWolverine()
+.ApplyAllDatabaseChangesOnStartup();
 
-app.MapGet("/weatherforecast", () =>
+builder.Host.UseWolverine(opts =>
 {
-    var forecast =  Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
+    opts.UseRabbitMqUsingNamedConnection("rabbitmq")
+        .AutoProvision()
+        .BindExchange("inventory-events").ToQueue("payment-api-inbox");
+
+    opts.Policies.AutoApplyTransactions();
+    opts.Policies.UseDurableOutboxOnAllSendingEndpoints();
+
+    opts.PublishMessage<PaymentProcessed>().ToRabbitExchange("payment-events");
+    opts.PublishMessage<PaymentFailed>().ToRabbitExchange("payment-events");
+
+    opts.ListenToRabbitQueue("payment-api-inbox");
 });
 
-app.Run();
+builder.Services.AddCors(o => o.AddDefaultPolicy(p =>
+    p.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()));
 
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}
+var app = builder.Build();
+app.UseCors();
+app.MapDefaultEndpoints();
+app.MapPaymentEndpoints();
+app.Run();
