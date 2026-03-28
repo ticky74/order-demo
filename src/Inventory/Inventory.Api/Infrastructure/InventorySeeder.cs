@@ -1,5 +1,6 @@
 // src/Inventory/Inventory.Api/Infrastructure/InventorySeeder.cs
 using Contracts.Events;
+using Inventory.Api.Domain;
 using Marten;
 using Wolverine;
 
@@ -63,8 +64,8 @@ public class InventorySeeder(IDocumentStore store, IMessageBus bus) : IHostedSer
 
         foreach (var product in products)
         {
-            session.Events.StartStream<Inventory.Api.Domain.InventoryItem>(product.ItemId, product);
-            await bus.PublishAsync(product);   // flows to read model via RabbitMQ outbox
+            session.Events.StartStream<InventoryItem>(product.ItemId, product);
+            await bus.PublishAsync(product);   // sends to RabbitMQ; in hosted service context, may not use the durable outbox
         }
 
         await session.SaveChangesAsync(cancellationToken);
