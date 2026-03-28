@@ -6,8 +6,9 @@ Build a proof-of-concept microservice application using the **Critterstack** arc
 
 ## Current State
 
-- **Phase:** Brainstorming / design — no code written yet
-- Empty `.slnx` solution and three empty service folders (`Inventory/`, `Order/`, `Payment/`) exist
+- **Phase:** Implementation underway — Task 1 (solution scaffolding) complete
+- Solution structure scaffolded: `.slnx` solution, `AppHost`, `Contracts`, `Inventory.Api`, `Order.Api`, `Payment.Api`, and `ReadModel.Projector` projects all created and added to solution
+- `.gitignore` in place; build artifacts excluded from source control
 
 ## Requirements (as stated)
 
