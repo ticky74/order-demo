@@ -1,34 +1,41 @@
-var builder = WebApplication.CreateBuilder(args);
+using Microsoft.EntityFrameworkCore;
+using ReadModel.Projector.Data;
+using ReadModel.Projector.Endpoints;
+using Wolverine;
+using Wolverine.RabbitMQ;
 
-// Add services to the container.
+var builder = WebApplication.CreateBuilder(args);
+builder.AddServiceDefaults();
+
+// ── EF Core (read model database) ──────────────────────────
+builder.AddNpgsqlDbContext<AppDbContext>("readmodel-db");
+
+// ── Wolverine (receive events from RabbitMQ) ─────────────────
+builder.Host.UseWolverine(opts =>
+{
+    opts.UseRabbitMqUsingNamedConnection("rabbitmq")
+        .AutoProvision()
+        .BindExchange("order-events").ToQueue("projector-inbox")
+        .BindExchange("inventory-events").ToQueue("projector-inbox")
+        .BindExchange("payment-events").ToQueue("projector-inbox");
+
+    // Projector does not publish messages — only listens
+    opts.ListenToRabbitQueue("projector-inbox");
+});
+
+builder.Services.AddCors(o => o.AddDefaultPolicy(p =>
+    p.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()));
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
-
-app.UseHttpsRedirection();
-
-var summaries = new[]
+// Auto-migrate the read model database on startup
+using (var scope = app.Services.CreateScope())
 {
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
-
-app.MapGet("/weatherforecast", () =>
-{
-    var forecast =  Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
-});
-
-app.Run();
-
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    await db.Database.MigrateAsync();
 }
+
+app.UseCors();
+app.MapDefaultEndpoints();
+app.MapCatalogEndpoints();
+app.Run();
