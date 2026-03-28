@@ -17,26 +17,27 @@ var rabbit = builder.AddRabbitMQ("rabbitmq", port: 5672)
     .WithManagementPlugin(port: 15672);
 
 // ── Services ───────────────────────────────────────────────
+// Use HTTP only — HTTPS dev certs are a pain in WSL2
 var inventoryApi = builder.AddProject<Projects.Inventory_Api>("inventory-api")
-    .WithHttpsEndpoint(port: 7001)
+    .WithEndpoint("http", e => e.Port = 7001)
     .WithReference(inventoryDb).WaitFor(inventoryDb)
     .WithReference(rabbit).WaitFor(rabbit)
     .WithExternalHttpEndpoints();
 
 var orderApi = builder.AddProject<Projects.Order_Api>("order-api")
-    .WithHttpsEndpoint(port: 7002)
+    .WithEndpoint("http", e => e.Port = 7002)
     .WithReference(ordersDb).WaitFor(ordersDb)
     .WithReference(rabbit).WaitFor(rabbit)
     .WithExternalHttpEndpoints();
 
 builder.AddProject<Projects.Payment_Api>("payment-api")
-    .WithHttpsEndpoint(port: 7003)
+    .WithEndpoint("http", e => e.Port = 7003)
     .WithReference(paymentsDb).WaitFor(paymentsDb)
     .WithReference(rabbit).WaitFor(rabbit)
     .WithExternalHttpEndpoints();
 
 var projector = builder.AddProject<Projects.ReadModel_Projector>("readmodel-projector")
-    .WithHttpsEndpoint(port: 7004)
+    .WithEndpoint("http", e => e.Port = 7004)
     .WithReference(readModelDb).WaitFor(readModelDb)
     .WithReference(rabbit).WaitFor(rabbit)
     .WithExternalHttpEndpoints();
@@ -44,7 +45,7 @@ var projector = builder.AddProject<Projects.ReadModel_Projector>("readmodel-proj
 // ── Frontend ───────────────────────────────────────────────
 builder.AddViteApp("frontend", "../Frontend/frontend")
     .WithNpm()
-    .WithHttpEndpoint(port: 3000, env: "VITE_PORT")
+    .WithEndpoint("http", e => e.Port = 3000)
     .WithReference(inventoryApi)
     .WithReference(orderApi)
     .WithReference(projector)

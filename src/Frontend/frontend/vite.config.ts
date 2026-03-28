@@ -12,14 +12,12 @@ export default defineConfig({
     port: 3000,
     proxy: {
       '/api/orders': {
-        target: 'https://localhost:7002',
+        target: 'http://localhost:7002',
         changeOrigin: true,
-        secure: false,
       },
       '/api/catalog': {
-        target: 'https://localhost:7004',
+        target: 'http://localhost:7004',
         changeOrigin: true,
-        secure: false,
       },
     },
   },
