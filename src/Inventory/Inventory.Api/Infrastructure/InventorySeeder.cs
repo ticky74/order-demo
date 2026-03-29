@@ -15,9 +15,18 @@ public class InventorySeeder(IDocumentStore store, IServiceScopeFactory scopeFac
         // Check if already seeded — look for any InventoryItemCreated events
         var existing = await session.Events
             .QueryRawEventDataOnly<InventoryItemCreated>()
-            .AnyAsync(cancellationToken);
+            .ToListAsync(cancellationToken);
 
-        if (existing) return;
+        if (existing.Count > 0)
+        {
+            // Re-broadcast so the read model repopulates if it was ever wiped or missed events.
+            // InventoryProjectionHandler.Handle is idempotent — safe to replay.
+            await using var replayScope = scopeFactory.CreateAsyncScope();
+            var replayBus = replayScope.ServiceProvider.GetRequiredService<IMessageBus>();
+            foreach (var evt in existing)
+                await replayBus.PublishAsync(evt);
+            return;
+        }
 
         var products = new[]
         {
