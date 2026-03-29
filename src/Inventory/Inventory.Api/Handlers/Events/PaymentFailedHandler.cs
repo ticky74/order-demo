@@ -22,7 +22,9 @@ public static class PaymentFailedHandler
             if (item is null) continue;
 
             var restoredQty = item.StockQuantity + orderItem.Quantity;
-            session.Events.Append(orderItem.ItemId, new StockQuantityUpdated(orderItem.ItemId, restoredQty));
+            var stockUpdate = new StockQuantityUpdated(orderItem.ItemId, restoredQty);
+            session.Events.Append(orderItem.ItemId, stockUpdate);
+            await bus.PublishAsync(stockUpdate);
             restoredItems.Add(orderItem);
         }
 

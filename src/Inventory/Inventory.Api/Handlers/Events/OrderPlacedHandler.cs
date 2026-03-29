@@ -61,10 +61,12 @@ public static class OrderPlacedHandler
             return;
         }
 
-        // Append StockQuantityUpdated events to each item's stream
+        // Append StockQuantityUpdated events to each item's stream and broadcast to read model
         foreach (var (itemId, newQty) in updatedQtys)
         {
-            session.Events.Append(itemId, new StockQuantityUpdated(itemId, newQty));
+            var stockUpdate = new StockQuantityUpdated(itemId, newQty);
+            session.Events.Append(itemId, stockUpdate);
+            await bus.PublishAsync(stockUpdate);
         }
 
         await bus.PublishAsync(reserved!);
