@@ -6,7 +6,7 @@ using Wolverine;
 
 namespace Inventory.Api.Infrastructure;
 
-public class InventorySeeder(IDocumentStore store, IMessageBus bus) : IHostedService
+public class InventorySeeder(IDocumentStore store, IServiceScopeFactory scopeFactory) : IHostedService
 {
     public async Task StartAsync(CancellationToken cancellationToken)
     {
@@ -63,12 +63,14 @@ public class InventorySeeder(IDocumentStore store, IMessageBus bus) : IHostedSer
         };
 
         foreach (var product in products)
-        {
             session.Events.StartStream<InventoryItem>(product.ItemId, product);
-            await bus.PublishAsync(product);   // sends to RabbitMQ; in hosted service context, may not use the durable outbox
-        }
 
         await session.SaveChangesAsync(cancellationToken);
+
+        await using var scope = scopeFactory.CreateAsyncScope();
+        var bus = scope.ServiceProvider.GetRequiredService<IMessageBus>();
+        foreach (var product in products)
+            await bus.PublishAsync(product);
     }
 
     public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
