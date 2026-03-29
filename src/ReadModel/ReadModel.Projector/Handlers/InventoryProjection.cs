@@ -6,9 +6,9 @@ using ReadModel.Projector.Models;
 
 namespace ReadModel.Projector.Handlers;
 
-public static class InventoryProjection
+public class InventoryProjectionHandler
 {
-    public static async Task Handle(InventoryItemCreated evt, AppDbContext db)
+    public async Task Handle(InventoryItemCreated evt, AppDbContext db)
     {
         // Idempotent — skip if already exists
         if (await db.InventoryItems.AnyAsync(i => i.Id == evt.ItemId)) return;
@@ -26,7 +26,7 @@ public static class InventoryProjection
         await db.SaveChangesAsync();
     }
 
-    public static async Task Handle(StockQuantityUpdated evt, AppDbContext db)
+    public async Task Handle(StockQuantityUpdated evt, AppDbContext db)
     {
         await db.InventoryItems
             .Where(i => i.Id == evt.ItemId)

@@ -6,9 +6,9 @@ using ReadModel.Projector.Models;
 
 namespace ReadModel.Projector.Handlers;
 
-public static class OrderProjection
+public class OrderProjectionHandler
 {
-    public static async Task Handle(OrderPlaced evt, AppDbContext db)
+    public async Task Handle(OrderPlaced evt, AppDbContext db)
     {
         var order = new OrderReadModel
         {
@@ -37,7 +37,7 @@ public static class OrderProjection
         await db.SaveChangesAsync();
     }
 
-    public static async Task Handle(OrderConfirmed evt, AppDbContext db)
+    public async Task Handle(OrderConfirmed evt, AppDbContext db)
     {
         await db.Orders
             .Where(o => o.Id == evt.OrderId)
@@ -46,7 +46,7 @@ public static class OrderProjection
                 .SetProperty(o => o.ConfirmedAt, evt.ConfirmedAt));
     }
 
-    public static async Task Handle(OrderFailed evt, AppDbContext db)
+    public async Task Handle(OrderFailed evt, AppDbContext db)
     {
         await db.Orders
             .Where(o => o.Id == evt.OrderId)

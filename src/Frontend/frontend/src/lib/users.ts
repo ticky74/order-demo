@@ -1,9 +1,9 @@
 import type { User } from '@/types'
 
 export const USERS: User[] = [
-  { id: 'usr-001', name: 'Mike Smith' },
-  { id: 'usr-002', name: 'Sara Jones' },
-  { id: 'usr-003', name: 'Dave Lee' },
+  { id: '11111111-0000-0000-0000-000000000001', name: 'Mike Smith' },
+  { id: '11111111-0000-0000-0000-000000000002', name: 'Sara Jones' },
+  { id: '11111111-0000-0000-0000-000000000003', name: 'Dave Lee' },
 ]
 
 const USER_KEY = 'orderdemo_user_id'

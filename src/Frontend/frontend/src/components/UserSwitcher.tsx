@@ -6,7 +6,7 @@ export function UserSwitcher({ onChange }: { onChange: () => void }) {
 
   return (
     <Select
-      defaultValue={current.id}
+      value={current.id}
       onValueChange={id => { setCurrentUser(id); onChange() }}
     >
       <SelectTrigger className="w-40">

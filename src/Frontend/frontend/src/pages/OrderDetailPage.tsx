@@ -10,14 +10,19 @@ import { Separator } from '@/components/ui/separator'
 export function OrderDetailPage() {
   const { id } = useParams<{ id: string }>()
 
-  const { data: order, isLoading } = useQuery<Order>({
+  const { data: order, isLoading, isError } = useQuery<Order>({
     queryKey: ['order', id],
     queryFn: () => api.getOrder(id!),
-    refetchInterval: (query) => query.state.data?.status === 'Pending' ? 3000 : false,
+    retry: 8,
+    retryDelay: 1000,
+    refetchInterval: (query) => {
+      const status = query.state.data?.status
+      return !status || status === 'Pending' ? 2000 : false
+    },
   })
 
   if (isLoading) return <div className="text-center py-20 text-muted-foreground">Loading order...</div>
-  if (!order) return <div className="text-center py-20 text-destructive">Order not found.</div>
+  if (isError) return <div className="text-center py-20 text-destructive">Order not found.</div>
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">

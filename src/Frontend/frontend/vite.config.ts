@@ -11,6 +11,10 @@ export default defineConfig({
   server: {
     port: 3000,
     proxy: {
+      '/api/catalog/items': {
+        target: 'http://localhost:7001',
+        changeOrigin: true,
+      },
       '/api/orders': {
         target: 'http://localhost:7002',
         changeOrigin: true,
